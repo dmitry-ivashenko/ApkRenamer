@@ -639,7 +639,6 @@ class Renamer {
     private Node getAttribute(Node node, String[] node_path, String attribute) {
 
         Node myNode = node;
-        NodeList childNodes = myNode.getChildNodes();
         for (String s : node_path) {
             myNode = getChildNode(myNode, s);
         }
@@ -686,14 +685,12 @@ class Renamer {
     // We do all changes in unzipped sources
     private void modifySources() {
         Node manifest = getMainXmlNode(getManifestFile());
-
         String packageName = getPackageName(manifest);
 
-
-        if (!this.pacName.equals("")) {
+        if (!this.pacName.isEmpty()) {
             changePackageName(manifest, this.pacName);
+            recursiveReplacePackageName(manifest, packageName, this.pacName);
         }
-
 
         changeStrings(manifest);
         fixProviderNoName(manifest);
@@ -709,6 +706,30 @@ class Renamer {
             renamePackageFolders(packageName, this.pacName);
         }
 
+    }
+
+    private void recursiveReplacePackageName(Node node, String packageName, String pacName) {
+        NodeList childNodes = node.getChildNodes();
+        for (int i = 0; i < childNodes.getLength(); i++) {
+            Node child = childNodes.item(i);
+            if (child.hasChildNodes()) {
+                recursiveReplacePackageName(child, packageName, pacName);
+            }
+            replacePackageAttrs(child, packageName);
+        }
+    }
+
+    private void replacePackageAttrs(Node child, String packageName) {
+        NamedNodeMap attributes = child.getAttributes();
+        if (attributes == null)
+            return;
+        for (int k = 0; k < attributes.getLength(); k++) {
+            Node attribute = attributes.item(k);
+            String value = attribute.getNodeValue();
+            if (value.contains(packageName)) {
+                attribute.setNodeValue(value.replace(packageName, this.pacName));
+            }
+        }
     }
 
     private void changeImages(Node manifest, File newIcon) {
